@@ -17,42 +17,8 @@ class BowlingGame
   def start
     # TODO: puts warning and break if game settings invalid
     get_frames
-
-    @frames.each_with_index do |frame, index|
-      puts "Frame: #{index + 1}"
-
-      total_score_this_frame = 0
-
-      if frame.include?('x') || frame.include?('X')
-        total_score_this_frame += 10
-        
-        break if index == @total_frames + 1
-
-        next_frame = @frames[index + 1]
-
-        if next_frame.include?('x') || next_frame.include?('X') || next_frame.include?('/')
-          total_score_this_frame += 10
-        else
-          total_score_this_frame += next_frame.map(&:to_i).sum
-        end
-      elsif frame.include?('/')
-        total_score_this_frame += 10
-
-        if next_frame.include?('x') || next_frame.include?('X') || next_frame.include?('/')
-          total_score_this_frame += 10
-        else
-          total_score_this_frame += next_frame.map(&:to_i).first
-        end
-      else
-        total_score_this_frame += frame.map(&:to_i).sum
-      end
-
-      total_score_this_frame += @scores_per_frame.sum
-
-      @scores_per_frame << total_score_this_frame
-
-      puts "Score: #{total_score_this_frame}"
-    end
+    get_scores
+    # display_scores
   end
 
   private
@@ -203,11 +169,47 @@ class BowlingGame
   def invalid_number_of_pins?(frame, pins_knocked_down)
     frame.map(&:to_i).sum + pins_knocked_down.to_i > total_pins_per_frame
   end
+
+  def get_scores
+    frames.each_with_index do |frame, index|
+      total_score_this_frame = frame_total(frame)
+
+      unless index == total_frames - 1
+        if strike_frame?(frame)
+          next_2_shots = next_n_shots(index, 2)
+          total_score_this_frame += frame_total(next_2_shots)
+        elsif spare_frame?(frame)
+          next_shot = next_n_shots(index, 1)
+          total_score_this_frame += frame_total(next_shot)
+        end
+      end
+
+      total_score_this_frame += scores.last unless scores.empty?
+      scores << total_score_this_frame
+    end
+  end
+
+  # Return the next n shots after frame number (index + 1)
+  def next_n_shots(index, n)
+    next_n_frames = frames[index + 1, index + 1 + n]
+    next_n_shots = next_n_frames.flatten[0, n]
+  end
+
+  def frame_total(frame)
+    total = 0
+
+    if spare_frame?(frame) && strike_frame?(frame)
+      total += total_pins_per_frame * (frame.count(SPARE_CHARACTER) + frame.count(STRIKE_CHARACTER))
+    elsif spare_frame?(frame)
+      total += total_pins_per_frame
+    else
+      total += frame.count(STRIKE_CHARACTER) * total_pins_per_frame + frame.map(&:to_i).sum
+    end
+  end
 end
 
 game = BowlingGame.new
-# game.start
-game.send :get_frames
+game.start
 game.frames.each_with_index do |frame, frame_number|
-  puts "FRAME #{frame_number}: #{frame}"
+  puts "FRAME #{frame_number}: #{frame}, SCORE: #{game.scores[frame_number]}"
 end
